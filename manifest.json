@@ -1,0 +1,18 @@
+{
+  "name": "AWPL Agent PWA",
+  "short_name": "AWPL",
+  "description": "Premium CRM and Network Marketing PWA for Asclepius Wellness Agents.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d1222",
+  "theme_color": "#0d1222",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://awpl-kycdocs.s3.ap-south-1.amazonaws.com/upload1/category/2B.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
