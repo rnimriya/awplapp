@@ -149,10 +149,15 @@ app.get('*', (req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`=================================================`);
-  console.log(`🚀 AWPL Agent PWA Server is running on port ${PORT}`);
-  console.log(`📂 Serving static files from: ${__dirname}`);
-  console.log(`🌐 Local URL: http://localhost:${PORT}`);
-  console.log(`=================================================`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`=================================================`);
+    console.log(`🚀 AWPL Agent PWA Server is running on port ${PORT}`);
+    console.log(`📂 Serving static files from: ${__dirname}`);
+    console.log(`🌐 Local URL: http://localhost:${PORT}`);
+    console.log(`=================================================`);
+  });
+}
+
+module.exports = app;
+
