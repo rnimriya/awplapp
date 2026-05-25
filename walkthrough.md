@@ -116,8 +116,12 @@ The project is fully configured for a one-click deployment on **Vercel** as a se
 * In production (on Vercel), it bypasses the `app.listen()` call and exports the raw Express app instance via `module.exports = app;`. This allows Vercel's serverless handler to execute the server as a lightweight function.
 
 ### 2. Vercel Rules Routing (`vercel.json`)
-* The configuration links all routes to `/server.js` (except static assets like `/logo.png`, `/app.js`, etc. which are served directly for optimal load speeds).
-* Dynamic APIs under `/api/*` and general single-page app (SPA) fallback pages are seamlessly routed to the Express function.
+* The routing configuration utilizes Vercel's native `"handle": "filesystem"` directive. This automatically instructs Vercel to serve all static assets placed inside the `public/` directory (like HTML, CSS, JS, logos) directly from the Vercel edge CDN.
+* Any other dynamic requests that do not match a static file in the `public/` folder are cleanly falling back and routed to `server.js` (Express).
+
+### 3. Project Directory Relocation (`public/`)
+* To ensure Vercel compiles and hosts the application files correctly, all frontend files (`index.html`, `style.css`, `app.js`, `products.js`, `logo.png`, `manifest.json`, `sw.js`) have been relocated into the `/public` folder.
+* The Express server (`server.js`) has been updated to serve static assets from the `public` directory: `app.use(express.static(path.join(__dirname, 'public')))` and `res.sendFile(path.join(__dirname, 'public', 'index.html'))`.
 
 ---
 
