@@ -117,13 +117,15 @@ const DEFAULT_STATE = {
   pendingPlacement: null,
   pendingRecruitContactId: null,
   registeredAgents: [], // Database of registered sellers
-  customProducts: []
+  customProducts: [],
+  products: [],
+  editingProductId: null
 };
 
 // Global State
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
-const STORAGE_KEY = "awpl_agent_pwa_state_v1";
+const STORAGE_KEY = "awpl_agent_pwa_state_v2"; // Bump storage key to avoid mismatch
 
 // --- Local Storage Helpers ---
 function loadState() {
@@ -132,8 +134,9 @@ function loadState() {
     try {
       state = JSON.parse(data);
       if (!state.currentTab) state.currentTab = 'dashboard';
-      if (!state.customProducts) {
-        state.customProducts = [];
+      if (!state.products || state.products.length === 0) {
+        const oldCustom = state.customProducts || [];
+        state.products = [...AWPL_PRODUCTS, ...oldCustom];
       }
       if (!state.activeBannerProductId) state.activeBannerProductId = getActiveProducts()[0].id;
       if (!state.crm) {
@@ -156,6 +159,7 @@ function loadState() {
   
   // No data exists, initialize defaults
   state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  state.products = [...AWPL_PRODUCTS];
   initDefaultRegisteredAgents();
   saveState();
   return false;
@@ -266,6 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupResetHook();
   initProfileUpdate();
   initCustomProductFeature();
+  initAICopilot();
 });
 
 // --- Authentication Login/Signup Flow ---
@@ -1125,6 +1130,19 @@ function initCatalog() {
   document.getElementById("btnSimulateCustomerBuy").addEventListener("click", () => {
     simulateCustomerPurchase();
   });
+
+  // Edit / Delete catalog buttons
+  document.getElementById("btnEditProduct").addEventListener("click", () => {
+    if (state.selectedProduct) {
+      editProduct(state.selectedProduct);
+    }
+  });
+
+  document.getElementById("btnDeleteProduct").addEventListener("click", () => {
+    if (state.selectedProduct) {
+      deleteProduct(state.selectedProduct.id);
+    }
+  });
 }
 
 function renderProductGrid(productsList) {
@@ -1177,6 +1195,42 @@ function openProductModal(product) {
   document.getElementById("modalProdBenefits").innerText = product.benefits;
   
   modal.classList.add("open");
+}
+
+function editProduct(product) {
+  state.editingProductId = product.id;
+  
+  // Fill inputs
+  document.getElementById("addProdName").value = product.name;
+  document.getElementById("addProdDp").value = product.dp;
+  document.getElementById("addProdMrp").value = product.mrp;
+  document.getElementById("addProdSp").value = product.sp;
+  document.getElementById("addProdSize").value = product.size;
+  document.getElementById("addProdSupply").value = product.supplyDays;
+  document.getElementById("addProdBenefits").value = product.benefits;
+  
+  // Change header & button text
+  document.querySelector("#addProductModal h2").innerText = "Edit Product Details";
+  document.getElementById("btnSaveCustomProduct").innerText = "Save Changes";
+  
+  // Close product details, open editor modal
+  document.getElementById("productModal").classList.remove("open");
+  document.getElementById("addProductModal").classList.add("open");
+}
+
+function deleteProduct(productId) {
+  if (!confirm("Are you sure you want to delete this product from your catalog?")) return;
+  
+  state.products = state.products.filter(p => p.id !== productId);
+  saveState();
+  
+  // Refresh UI
+  renderProductGrid(getActiveProducts());
+  initAffiliateTracker();
+  initMarketingHub();
+  
+  document.getElementById("productModal").classList.remove("open");
+  showToast("Product deleted from catalog.");
 }
 
 function simulatePersonalPurchase() {
@@ -2173,6 +2227,7 @@ function openWhatsappReminderFromNoti(reminderId) {
 // --- Profile Customization (Upload & Sync Settings) ---
 function initProfileUpdate() {
   const btnEditProfile = document.getElementById("btnEditProfile");
+  const btnHeaderSettings = document.getElementById("btnHeaderSettings");
   const modal = document.getElementById("updateProfileModal");
   const closeBtn = document.getElementById("closeUpdateProfileBtn");
   const fileTrigger = document.getElementById("btnUploadPhotoTrigger");
@@ -2181,10 +2236,9 @@ function initProfileUpdate() {
   const previewImg = document.getElementById("profilePhotoPreview");
   const placeholderDiv = document.getElementById("profilePhotoPlaceholder");
 
-  if (!btnEditProfile || !modal) return;
+  if (!modal) return;
 
-  // Open Edit Profile Modal
-  btnEditProfile.addEventListener("click", () => {
+  const openProfileModal = () => {
     document.getElementById("profileName").value = state.agent.name || "";
     document.getElementById("profilePhone").value = state.agent.phone || "";
 
@@ -2199,7 +2253,14 @@ function initProfileUpdate() {
     }
 
     modal.classList.add("open");
-  });
+  };
+
+  if (btnEditProfile) {
+    btnEditProfile.addEventListener("click", openProfileModal);
+  }
+  if (btnHeaderSettings) {
+    btnHeaderSettings.addEventListener("click", openProfileModal);
+  }
 
   // Close Modal
   closeBtn.addEventListener("click", () => {
@@ -2280,6 +2341,10 @@ function initCustomProductFeature() {
   if (!btnOpen || !modal) return;
 
   btnOpen.addEventListener("click", () => {
+    state.editingProductId = null;
+    document.querySelector("#addProductModal h2").innerText = "Add Custom Product";
+    document.getElementById("btnSaveCustomProduct").innerText = "Add Product to Catalog";
+    
     document.getElementById("addProdName").value = "";
     document.getElementById("addProdDp").value = "";
     document.getElementById("addProdMrp").value = "";
@@ -2308,32 +2373,271 @@ function initCustomProductFeature() {
       return;
     }
 
-    const prodId = "custom-" + name.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Math.floor(100 + Math.random() * 900);
+    if (state.editingProductId) {
+      // Editing Mode
+      const idx = state.products.findIndex(p => p.id === state.editingProductId);
+      if (idx !== -1) {
+        state.products[idx] = {
+          ...state.products[idx],
+          name: name.toUpperCase(),
+          mrp: mrp,
+          dp: dp,
+          sp: sp,
+          size: size,
+          supplyDays: supply,
+          benefits: benefits || "Premium Ayurvedic wellness formula."
+        };
+        saveState();
+        showToast(`Updated ${name} successfully!`);
+      }
+      state.editingProductId = null;
+    } else {
+      // Creation Mode
+      const prodId = "custom-" + name.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Math.floor(100 + Math.random() * 900);
+      const newProduct = {
+        id: prodId,
+        name: name.toUpperCase(),
+        mrp: mrp,
+        dp: dp,
+        sp: sp,
+        size: size,
+        supplyDays: supply,
+        benefits: benefits || "Premium Ayurvedic wellness formula.",
+        image: "https://awpl-kycdocs.s3.ap-south-1.amazonaws.com/upload1/category/2B.jpeg"
+      };
 
-    const newProduct = {
-      id: prodId,
-      name: name.toUpperCase(),
-      mrp: mrp,
-      dp: dp,
-      sp: sp,
-      size: size,
-      supplyDays: supply,
-      benefits: benefits || "Premium Ayurvedic wellness formula.",
-      image: "https://awpl-kycdocs.s3.ap-south-1.amazonaws.com/upload1/category/2B.jpeg"
-    };
-
-    if (!state.customProducts) {
-      state.customProducts = [];
+      state.products.push(newProduct);
+      saveState();
+      showToast(`Added ${name} to Catalog!`);
     }
-
-    state.customProducts.push(newProduct);
-    saveState();
 
     renderProductGrid(getActiveProducts());
     initAffiliateTracker();
     initMarketingHub();
 
     modal.classList.remove("open");
-    showToast(`Added ${name} to Catalog!`);
   });
+}
+
+// --- AI Copilot Feature (Text & Voice Chat) ---
+let copilotVoiceEnabled = true;
+
+function initAICopilot() {
+  const btnOpen = document.getElementById("btnOpenCopilot");
+  const btnClose = document.getElementById("btnCloseCopilot");
+  const panel = document.getElementById("aiCopilotPanel");
+  const btnSend = document.getElementById("btnSendCopilotMsg");
+  const inputText = document.getElementById("copilotInputText");
+  const chatMessages = document.getElementById("copilotChatMessages");
+  const btnToggleVoice = document.getElementById("btnToggleCopilotVoice");
+  const btnVoiceInput = document.getElementById("btnCopilotVoiceInput");
+  const soundwaves = document.getElementById("soundwaveContainer");
+
+  if (!btnOpen || !panel) return;
+
+  // Toggle open/close
+  btnOpen.addEventListener("click", () => {
+    panel.classList.add("open");
+    if (chatMessages.children.length === 0) {
+      sendCopilotGreeting();
+    }
+  });
+
+  btnClose.addEventListener("click", () => {
+    panel.classList.remove("open");
+    window.speechSynthesis.cancel();
+  });
+
+  // Toggle voice feedback
+  btnToggleVoice.addEventListener("click", () => {
+    copilotVoiceEnabled = !copilotVoiceEnabled;
+    const voiceIcon = document.getElementById("voiceIcon");
+    if (copilotVoiceEnabled) {
+      btnToggleVoice.style.background = "rgba(255, 87, 34, 0.2)";
+      btnToggleVoice.style.borderColor = "var(--primary)";
+      voiceIcon.style.color = "var(--primary)";
+      showToast("Voice feedback enabled");
+    } else {
+      btnToggleVoice.style.background = "rgba(255,255,255,0.05)";
+      btnToggleVoice.style.borderColor = "var(--border-glass)";
+      voiceIcon.style.color = "var(--text-muted)";
+      window.speechSynthesis.cancel();
+      showToast("Voice feedback muted");
+    }
+  });
+
+  // Text Send Actions
+  btnSend.addEventListener("click", () => {
+    submitCopilotMessage();
+  });
+
+  inputText.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      submitCopilotMessage();
+    }
+  });
+
+  // Web Speech API: Voice Recognition Setup
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let isListening = false;
+
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = "en-IN"; // Set language to Indian English for AWPL agents
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      isListening = true;
+      btnVoiceInput.style.background = "rgba(255, 87, 34, 0.25)";
+      btnVoiceInput.style.borderColor = "var(--primary)";
+      soundwaves.style.display = "flex";
+      inputText.placeholder = "Listening...";
+    };
+
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      inputText.value = transcript;
+      submitCopilotMessage();
+    };
+
+    recognition.onerror = (e) => {
+      console.error("Speech recognition error:", e.error);
+      if (e.error === 'not-allowed') {
+        showToast("Microphone access denied.", "error");
+      } else {
+        showToast("Voice capture failed. Try typing.", "error");
+      }
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      btnVoiceInput.style.background = "rgba(255,255,255,0.05)";
+      btnVoiceInput.style.borderColor = "var(--border-glass)";
+      soundwaves.style.display = "none";
+      inputText.placeholder = "Ask AI Copilot about products, CRM...";
+    };
+  }
+
+  btnVoiceInput.addEventListener("click", () => {
+    if (!SpeechRecognition) {
+      showToast("Speech Recognition not supported in this browser.", "error");
+      return;
+    }
+    if (isListening) {
+      recognition.stop();
+    } else {
+      window.speechSynthesis.cancel();
+      recognition.start();
+    }
+  });
+
+  function sendCopilotGreeting() {
+    const greetingText = `Hello ${state.agent.name}! I am your AWPL AI Copilot. I can answer questions about our products, direct marketing plans, CRM alerts, downline recruitments, or customized flyers. Try asking me about Diabodoc or how to place a recruit!`;
+    appendCopilotMessage("bot", greetingText);
+    speakResponse(greetingText);
+  }
+
+  function submitCopilotMessage() {
+    const text = inputText.value.trim();
+    if (!text) return;
+
+    appendCopilotMessage("user", text);
+    inputText.value = "";
+
+    // Generate response with matching engine
+    setTimeout(() => {
+      const botResponse = generateCopilotResponse(text);
+      appendCopilotMessage("bot", botResponse);
+      speakResponse(botResponse);
+    }, 600);
+  }
+
+  function appendCopilotMessage(sender, text) {
+    const bubble = document.createElement("div");
+    bubble.className = `chat-bubble ${sender}`;
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    bubble.innerHTML = `
+      <div>${text}</div>
+      <span class="copilot-msg-time">${time}</span>
+    `;
+    chatMessages.appendChild(bubble);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function speakResponse(text) {
+    if (!copilotVoiceEnabled) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    // Default to an English voice
+    const voice = voices.find(v => v.lang.startsWith("en")) || voices[0];
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
+function generateCopilotResponse(query) {
+  const q = query.toLowerCase();
+
+  // 1. Product Queries
+  if (q.includes("diabodoc") || q.includes("diabetes") || q.includes("sugar")) {
+    return "DIABODOC RAS helps manage blood sugar levels naturally with Jamun, Karela, and Gurmar. A 1000 ML bottle is ₹1,259 DP (MRP ₹1,460), giving you +8 SP.";
+  }
+  if (q.includes("immunodoc") || q.includes("immunity") || q.includes("stam")) {
+    return "IMMUNODOC RAS is a powerful immunity booster blend of Giloy, Tulsi, and Ginger. A 1000 ML bottle is ₹1,789 DP (MRP ₹2,073) and contributes +12 SP.";
+  }
+  if (q.includes("tulsi") || q.includes("panch tulsi")) {
+    return "EXE PANCH TULSI OIL supports respiratory health with anti-bacterial and anti-oxidant properties. A 25 ML bottle is ₹349 DP (MRP ₹404) contributing +2 SP.";
+  }
+  if (q.includes("thunderblast") || q.includes("muscle") || q.includes("energ")) {
+    return "THUNDERBLAST RAS is a premium energizer tonic to enhance muscle strength and nerve vitality. A 500 ML bottle is ₹1,939 DP (MRP ₹2,248) contributing +13 SP.";
+  }
+  if (q.includes("gynedoc") || q.includes("women") || q.includes("hormon")) {
+    return "GYNEDOC RAS is a comprehensive health tonic for women that regularizes cycles and boosts energy. A 500 ML bottle is ₹1,244 DP (MRP ₹1,442) contributing +8 SP.";
+  }
+  if (q.includes("joint") || q.includes("bone") || q.includes("orthodoc")) {
+    return "ORTHODOC PRAVAHI KWATH is a complete joint care formulation that lubricates joints and reduces pain. A 1000 ML bottle is ₹1,941 DP (MRP ₹2,250) contributing +13 SP.";
+  }
+  if (q.includes("stone") || q.includes("kidney") || q.includes("stondoc")) {
+    return "STONDOC RAS is a kidney stone care formula that helps disintegrate and flush out urinary stones. A 1000 ML bottle is ₹2,163 DP (MRP ₹2,507) contributing +14 SP.";
+  }
+  if (q.includes("weight") || q.includes("fat") || q.includes("obeodoc")) {
+    return "OBEODOC RAS is a natural weight management formula that boosts metabolism and burns fat. A 1000 ML bottle is ₹2,192 DP (MRP ₹2,541) contributing +15 SP.";
+  }
+  if (q.includes("product") || q.includes("catalog") || q.includes("price") || q.includes("size")) {
+    return `We currently have ${getActiveProducts().length} products in your database. You can manage them directly inside the Products tab by clicking on any product card and selecting Edit or Delete, or click 'Add Product' at the top to add a new one.`;
+  }
+
+  // 2. MLM Network & Recruitment Queries
+  if (q.includes("recruit") || q.includes("place") || q.includes("downline") || q.includes("tree")) {
+    return "To recruit a prospect, go to Links -> Social CRM, click 'Recruit as Agent' next to their name. The app will guide you to select a vacant (+) slot in the binary tree on the My Network tab. Clicking the vacant slot opens the registration form with their name prefilled.";
+  }
+
+  // 3. CRM Alerts & Reminders Queries
+  if (q.includes("reminder") || q.includes("day 25") || q.includes("whatsapp") || q.includes("alert")) {
+    return "The CRM schedules a repurchase reminder on Day 25 whenever a customer purchase is logged. You can trigger Day 25 instantly using the '⚡ Trigger Day 25' button to test it, and click 'Send WhatsApp' to preview and open prefilled messages.";
+  }
+
+  // 4. Marketing Flyer Queries
+  if (q.includes("flyer") || q.includes("custom") || q.includes("banner") || q.includes("qr code")) {
+    return "Under the Flyers tab, you can customize promotional banners. Choose style themes (such as Orange Glow or Golden Luxury), add a discount Ribbon Badge, customize your name and phone, and toggle a QR code pointing directly to your checkout link!";
+  }
+
+  // 5. Binary Plan & Commissions
+  if (q.includes("commission") || q.includes("earnings") || q.includes("sp") || q.includes("weekly") || q.includes("points")) {
+    return `Right now, you have left team volume at ${state.agent.leftSp.toLocaleString()} SP and right team volume at ${state.agent.rightSp.toLocaleString()} SP. Your total earnings are ₹${state.agent.totalEarnings.toLocaleString()} with weekly commission of ₹${state.agent.weeklyCommission.toLocaleString()}. Match SP volumes to earn binary commissions!`;
+  }
+
+  // 6. Conversational basics
+  if (q.includes("hello") || q.includes("hi") || q.includes("hey") || q.includes("greetings")) {
+    return `Hello! I'm here to assist you. Ask me anything about AWPL products, network recruitment, CRM, or flyer customization.`;
+  }
+  if (q.includes("thank") || q.includes("thanks") || q.includes("awesome") || q.includes("great")) {
+    return "You're welcome! I'm always glad to help. Let me know if you have other questions about managing your AWPL network.";
+  }
+
+  // Fallback direct-sales coaching advice
+  return "That is a great question! As your AWPL copilot, I recommend checking your Social CRM contacts, promoting products on WhatsApp using our tracking links, or downloading customized flyers to share in your groups. This builds balanced sales points (SP) in your team Legs!";
 }

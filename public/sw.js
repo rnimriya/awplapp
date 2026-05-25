@@ -1,4 +1,4 @@
-const CACHE_NAME = 'awpl-cache-v1';
+const CACHE_NAME = 'awpl-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,8 @@ const ASSETS = [
   './products.js',
   './app.js',
   './logo.png',
+  './favicon.png',
+  './favicon.ico',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap'
 ];
 

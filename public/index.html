@@ -24,7 +24,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="AWPL Agent">
-  <link rel="apple-touch-icon" href="https://awpl-kycdocs.s3.ap-south-1.amazonaws.com/upload1/category/2B.jpeg">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="shortcut icon" href="favicon.ico">
 </head>
 <body>
 
@@ -149,6 +151,9 @@
           <button class="header-btn" id="btnNotifications" aria-label="Notifications">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
             <div class="notification-dot"></div>
+          </button>
+          <button class="header-btn" id="btnHeaderSettings" title="Profile Settings" style="background: rgba(255,255,255,0.05); border-color: var(--border-glass); color: var(--text-normal);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           </button>
           <button class="header-btn" id="btnLogout" title="Log Out" style="background: rgba(255,255,255,0.05); border-color: var(--border-glass); color: #ef4444;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -504,7 +509,15 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     Create Marketing Flyer
                   </button>
-                  
+                  <div style="display: flex; gap: 8px; margin-top: 4px;" id="modalEditDeleteActions">
+                    <button class="control-btn product-modal-edit-btn" id="btnEditProduct" style="flex: 1; font-size: 11px;">
+                      ✏️ Edit Product
+                    </button>
+                    <button class="control-btn product-modal-delete-btn" id="btnDeleteProduct" style="flex: 1; font-size: 11px;">
+                      🗑️ Delete Product
+                    </button>
+                  </div>
+
                   <!-- Purchase Simulation Grid -->
                   <div style="display: flex; gap: 8px; margin-top: 6px;">
                     <button class="control-btn" id="btnSimulatePersonalBuy" style="flex: 1; border-color: var(--accent-gold); color: var(--accent-gold); font-size: 11px;">
@@ -646,6 +659,52 @@
           Flyers
         </button>
       </nav>
+    </div>
+
+    <!-- AI Copilot Floating Action Button -->
+    <button class="ai-copilot-fab" id="btnOpenCopilot" title="AI Copilot">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+
+    <!-- AI Copilot Panel -->
+    <div class="ai-copilot-panel" id="aiCopilotPanel">
+      <div class="copilot-header">
+        <div class="copilot-title-wrapper">
+          <div class="copilot-status-dot"></div>
+          <h2 style="font-size: 14px; font-weight: 700; color: #fff;">AWPL AI Copilot</h2>
+        </div>
+        <div class="copilot-actions">
+          <button class="copilot-action-btn" id="btnToggleCopilotVoice" title="Toggle AI Voice Output">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="voiceIcon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          </button>
+          <button class="close-modal-btn" id="btnCloseCopilot" style="width: 24px; height: 24px;">&times;</button>
+        </div>
+      </div>
+      <div class="copilot-chat-area" id="copilotChatMessages">
+        <!-- Messages rendered dynamically -->
+      </div>
+      <div class="copilot-input-area">
+        <div class="copilot-input-form">
+          <input type="text" class="copilot-text-input" id="copilotInputText" placeholder="Ask AI Copilot about products, CRM...">
+          
+          <!-- Soundwave and microphone button -->
+          <div class="soundwave-container" id="soundwaveContainer">
+            <div class="soundwave-bar"></div>
+            <div class="soundwave-bar"></div>
+            <div class="soundwave-bar"></div>
+            <div class="soundwave-bar"></div>
+            <div class="soundwave-bar"></div>
+          </div>
+          
+          <button class="copilot-action-btn" id="btnCopilotVoiceInput" title="Speech to Text (Voice)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="micIcon"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"></path></svg>
+          </button>
+          
+          <button class="btn-primary" id="btnSendCopilotMsg" style="width: auto; padding: 8px 16px; border-radius: 18px; font-size: 11px;">
+            Send
+          </button>
+        </div>
+      </div>
     </div>
 
   </div>
