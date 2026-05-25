@@ -9,8 +9,8 @@ const PORT = process.env.PORT || 8080;
 app.use(cors());
 app.use(express.json());
 
-// Serve static assets from workspace directory
-app.use(express.static(path.join(__dirname)));
+// Serve static assets from public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Mock Database State (in-memory, syncs with app defaults)
 let mockContacts = [
@@ -145,7 +145,7 @@ app.post('/api/crm/reminders/send', (req, res) => {
 
 // Catch-all route to serve the main HTML file (supporting SPAs)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Start Server
